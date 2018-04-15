@@ -157,7 +157,15 @@ private:
   #pragma GCC diagnostic ignored "-Wpedantic" // no specific ZLA warning in GCC
 #elif defined _MSC_VER
 #endif
+#if SIZE_MAX == UINT32_MAX
     union { Lit lit; float act; AbsLevel abs; CRef rel; } data[0];
+#else
+    static_assert(sizeof(Lit) == sizeof(float), "float has the size of Lit");
+    static_assert(sizeof(Lit) == sizeof(AbsLevel), "AbsLevel has the size of Lit");
+    static_assert(sizeof(Lit) == sizeof(uint32_t), "Lit is uint32_t");
+    static_assert(2 * sizeof(Lit) == sizeof(CRef), "CRef is 2*Lit");
+    union { Lit lit; float act; AbsLevel abs; uint32_t rel; } data[0];
+#endif
 #if defined __clang__
   #pragma clang diagnostic pop
 #elif defined __GNUC__
@@ -222,8 +230,33 @@ public:
     const Lit&   last        ()      const   { return data[header.size-1].lit; }
 
     bool         reloced     ()      const   { return header.reloced; }
+#if SIZE_MAX == UINT32_MAX
     CRef         relocation  ()      const   { return data[0].rel; }
     void         relocate    (CRef c)        { header.reloced = 1; data[0].rel = c; }
+#else
+#if defined __clang__
+  #pragma clang diagnostic push
+#elif defined __GNUC__
+  #pragma GCC diagnostic push
+#elif defined _MSC_VER
+  #pragma warning(push)
+#endif
+#if defined __clang__
+  #pragma clang diagnostic ignored "-Wstrict-aliasing"
+#elif defined __GNUC__
+  #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#elif defined _MSC_VER
+#endif
+    CRef         relocation  ()      const   { return *(CRef*)data; }
+    void         relocate    (CRef c)        { header.reloced = 1; *(CRef*)data = c; }
+#if defined __clang__
+  #pragma clang diagnostic pop
+#elif defined __GNUC__
+  #pragma GCC diagnostic pop
+#elif defined _MSC_VER
+  #pragma warning(pop)
+#endif
+#endif
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
@@ -247,8 +280,15 @@ class ClauseAllocator
 {
     RegionAllocator<uint32_t> ra;
 
-    static uint32_t clauseWord32Size(int size, bool has_extra){
+#if SIZE_MAX == UINT32_MAX
+    static size_t clauseWord32Size(size_t size, bool has_extra){
         return (sizeof(Clause) + (sizeof(Lit) * (size + (int)has_extra))) / sizeof(uint32_t); }
+#else
+    static size_t clauseWord32Size(size_t size, bool has_extra){
+        size_t s = size + (size_t)has_extra;
+        s = s < 2 ? 2 : s;
+        return (sizeof(Clause) + (sizeof(Lit) * s)) / sizeof(uint32_t); }
+#endif
 
  public:
     enum { Unit_Size = RegionAllocator<uint32_t>::Unit_Size };
