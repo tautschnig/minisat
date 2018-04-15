@@ -785,7 +785,7 @@ lbool Solver::search(int nof_conflicts)
             if (decisionLevel() == 0 && !simplify())
                 return l_False;
 
-            if (learnts.size()-nAssigns() >= max_learnts)
+            if (learnts.size() >= max_learnts + nAssigns())
                 // Reduce the set of learnt clauses:
                 reduceDB();
 
