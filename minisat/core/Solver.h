@@ -157,6 +157,7 @@ public:
     uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
 
 protected:
+    typedef Clause::AbsLevel AbsLevel;
 
     // Helper structures:
     //
@@ -286,7 +287,7 @@ protected:
     // Misc:
     //
     size_t   decisionLevel    ()      const; // Gives the current decisionlevel.
-    uint32_t abstractLevel    (Var x) const; // Used to represent an abstraction of sets of decision levels.
+    AbsLevel abstractLevel    (Var x) const; // Used to represent an abstraction of sets of decision levels.
     CRef     reason           (Var x) const;
     size_t   level            (Var x) const;
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
@@ -358,7 +359,7 @@ inline bool     Solver::locked          (const Clause& c) const { return value(c
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
 
 inline size_t   Solver::decisionLevel ()      const   { return trail_lim.size(); }
-inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level(x) & 31); }
+inline Solver::AbsLevel Solver::abstractLevel (Var x) const   { return 1 << (level(x) & (sizeof(AbsLevel)*8-1)); }
 inline lbool    Solver::value         (Var x) const   { return assigns[x]; }
 inline lbool    Solver::value         (Lit p) const   { return assigns[var(p)] ^ sign(p); }
 inline lbool    Solver::modelValue    (Var x) const   { return model[x]; }

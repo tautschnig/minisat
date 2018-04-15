@@ -141,6 +141,9 @@ class Clause {
         unsigned has_extra : 1;
         unsigned reloced   : 1;
         unsigned size      : 27; }                        header;
+public:
+    typedef uint32_t AbsLevel;
+private:
 #if defined __clang__
   #pragma clang diagnostic push
 #elif defined __GNUC__
@@ -154,7 +157,7 @@ class Clause {
   #pragma GCC diagnostic ignored "-Wpedantic" // no specific ZLA warning in GCC
 #elif defined _MSC_VER
 #endif
-    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
+    union { Lit lit; float act; AbsLevel abs; CRef rel; } data[0];
 #if defined __clang__
   #pragma clang diagnostic pop
 #elif defined __GNUC__
@@ -203,9 +206,9 @@ class Clause {
 public:
     void calcAbstraction() {
         assert(header.has_extra);
-        uint32_t abstraction = 0;
+        AbsLevel abstraction = 0;
         for (size_t i = 0; i < size(); i++)
-            abstraction |= 1 << (var(data[i].lit) & 31);
+            abstraction |= 1 << (var(data[i].lit) & (sizeof(AbsLevel)*8 - 1));
         data[header.size].abs = abstraction;  }
 
 
@@ -229,7 +232,7 @@ public:
     operator const Lit* (void) const         { return (Lit*)data; }
 
     float&       activity    ()              { assert(header.has_extra); return data[header.size].act; }
-    uint32_t     abstraction () const        { assert(header.has_extra); return data[header.size].abs; }
+    AbsLevel     abstraction () const        { assert(header.has_extra); return data[header.size].abs; }
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
