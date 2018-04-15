@@ -173,7 +173,7 @@ class Clause {
         header.reloced   = 0;
         header.size      = ps.size();
 
-        for (int i = 0; i < ps.size(); i++) 
+        for (size_t i = 0; i < ps.size(); i++)
             data[i].lit = ps[i];
 
         if (header.has_extra){
@@ -189,7 +189,7 @@ class Clause {
         header           = from.header;
         header.has_extra = use_extra;   // NOTE: the copied clause may lose the extra field.
 
-        for (int i = 0; i < from.size(); i++)
+        for (size_t i = 0; i < from.size(); i++)
             data[i].lit = from[i];
 
         if (header.has_extra){
@@ -204,13 +204,13 @@ public:
     void calcAbstraction() {
         assert(header.has_extra);
         uint32_t abstraction = 0;
-        for (int i = 0; i < size(); i++)
+        for (size_t i = 0; i < size(); i++)
             abstraction |= 1 << (var(data[i].lit) & 31);
         data[header.size].abs = abstraction;  }
 
 
-    int          size        ()      const   { return header.size; }
-    void         shrink      (int i)         { assert(i <= size()); if (header.has_extra) data[header.size-i] = data[header.size]; header.size -= i; }
+    size_t       size        ()      const   { return header.size; }
+    void         shrink      (size_t i)      { assert(i <= size()); if (header.has_extra) data[header.size-i] = data[header.size]; header.size -= i; }
     void         pop         ()              { shrink(1); }
     bool         learnt      ()      const   { return header.learnt; }
     bool         has_extra   ()      const   { return header.has_extra; }
@@ -224,8 +224,8 @@ public:
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
-    Lit&         operator [] (int i)         { return data[i].lit; }
-    Lit          operator [] (int i) const   { return data[i].lit; }
+    Lit&         operator [] (size_t i)      { return data[i].lit; }
+    Lit          operator [] (size_t i) const{ return data[i].lit; }
     operator const Lit* (void) const         { return (Lit*)data; }
 
     float&       activity    ()              { assert(header.has_extra); return data[header.size].act; }
@@ -252,7 +252,7 @@ class ClauseAllocator
 
     bool extra_clause_field;
 
-    ClauseAllocator(uint32_t start_cap) : ra(start_cap), extra_clause_field(false){}
+    ClauseAllocator(size_t start_cap) : ra(start_cap), extra_clause_field(false){}
     ClauseAllocator() : extra_clause_field(false){}
 
     void moveTo(ClauseAllocator& to){
@@ -277,8 +277,8 @@ class ClauseAllocator
         new (lea(cid)) Clause(from, use_extra);
         return cid; }
 
-    uint32_t size      () const      { return ra.size(); }
-    uint32_t wasted    () const      { return ra.wasted(); }
+    size_t   size      () const      { return ra.size(); }
+    size_t   wasted    () const      { return ra.wasted(); }
 
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
     Clause&       operator[](CRef r)         { return (Clause&)ra[r]; }
@@ -376,7 +376,7 @@ class OccLists
 template<class K, class Vec, class Deleted, class MkIndex>
 void OccLists<K,Vec,Deleted,MkIndex>::cleanAll()
 {
-    for (int i = 0; i < dirties.size(); i++)
+    for (size_t i = 0; i < dirties.size(); i++)
         // Dirties may contain duplicates so check here if a variable is already cleaned:
         if (dirty[dirties[i]])
             clean(dirties[i]);
@@ -388,7 +388,7 @@ template<class K, class Vec, class Deleted, class MkIndex>
 void OccLists<K,Vec,Deleted,MkIndex>::clean(const K& idx)
 {
     Vec& vec = occs[idx];
-    int  i, j;
+    size_t i, j;
     for (i = j = 0; i < vec.size(); i++)
         if (!deleted(vec[i]))
             vec[j++] = vec[i];
@@ -413,7 +413,7 @@ class CMap
  public:
     // Size-operations:
     void     clear       ()                           { map.clear(); }
-    int      size        ()                const      { return map.elems(); }
+    size_t   size        ()                const      { return map.elems(); }
 
     
     // Insert/Remove/Test mapping:
@@ -427,8 +427,8 @@ class CMap
     T&       operator [] (CRef cr)            { return map[cr]; }
 
     // Iteration (not transparent at all at the moment):
-    int  bucket_count() const { return map.bucket_count(); }
-    const vec<typename HashTable::Pair>& bucket(int i) const { return map.bucket(i); }
+    size_t  bucket_count() const { return map.bucket_count(); }
+    const vec<typename HashTable::Pair>& bucket(size_t i) const { return map.bucket(i); }
 
     // Move contents to other map:
     void moveTo(CMap& other){ map.moveTo(other.map); }

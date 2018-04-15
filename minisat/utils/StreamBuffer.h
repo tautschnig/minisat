@@ -40,8 +40,8 @@ class StreamBuffer {
     gzFile         in;
 #endif
     unsigned char* buf;
-    int            pos;
-    int            size;
+    size_t         pos;
+    size_t         size;
 
     enum { buffer_size = 64*1024 };
 
@@ -66,7 +66,7 @@ public:
 
     int  operator *  () const { return (pos >= size) ? EOF : buf[pos]; }
     void operator ++ ()       { pos++; assureLookahead(); }
-    int  position    () const { return pos; }
+    size_t position  () const { return pos; }
 };
 
 //-------------------------------------------------------------------------------------------------
