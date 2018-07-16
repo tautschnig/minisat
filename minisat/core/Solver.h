@@ -46,6 +46,7 @@ public:
     // Problem specification:
     //
     Var     newVar    (lbool upol = l_Undef, bool dvar = true); // Add a new variable with parameters specifying variable mode.
+    void    reserveVars(Var v);                                 // Reserve space for many variables in continuous fashion.
     void    releaseVar(Lit l);                                  // Make literal true and promise to never refer to variable again.
 
     bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
@@ -130,6 +131,7 @@ public:
 
     // Mode of operation:
     //
+    bool      reparsed_options;   // Indicate whether the update parameter method has been used
     int       verbosity;
     double    var_decay;
     double    clause_decay;
@@ -270,8 +272,8 @@ protected:
     // Operations on clauses:
     //
     void     attachClause     (CRef cr);               // Attach a clause to watcher lists.
-    void     detachClause     (CRef cr, bool strict = false); // Detach a clause to watcher lists.
-    void     removeClause     (CRef cr);               // Detach and free a clause.
+    void     detachClause     (CRef cr, bool strict = false);           // Detach a clause to watcher lists.
+    void     removeClause     (CRef cr, bool remove_from_proof = true); // Detach and free a clause.
     bool     isRemoved        (CRef cr) const;         // Test if a clause has been removed.
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
@@ -281,7 +283,7 @@ protected:
     vec<Lit>  proofTmp;           // Temporary literals for handling proof extension
 
     template <class T>
-    void      extendProof(const T& clause, bool remove = false); // Extend the proof - if open - with the given clause, and extend with 'd ' if requested
+    void      extendProof(const T& clause, bool remove = false, Lit drop = lit_Undef); // Extend the proof - if open - with the given clause, and extend with 'd ' if requested. Drop the drop literal from the clause, in case it's specified.
 
     // Misc:
     //
@@ -308,6 +310,8 @@ protected:
         return (int)(drand(seed) * size); }
 };
 
+// Method to update cli options from the environment variable MINISAT_RUNTIME_ARGS
+bool updateOptions();
 
 //=================================================================================================
 // Implementation of inline methods:
@@ -411,7 +415,7 @@ inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> 
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
 template <class T>
-inline void     Solver::extendProof  (const T& clause, bool remove) {
+inline void     Solver::extendProof  (const T& clause, bool remove, Lit drop) {
     if(!proofFile) return;
 
     std::stringstream s;
@@ -419,7 +423,11 @@ inline void     Solver::extendProof  (const T& clause, bool remove) {
         s << "d ";
 
     for (int i = 0; i < clause.size(); i++)
+    {
+        if(drop == clause[i])
+            continue;
         s << (var(clause[i]) + 1) * (-2 * sign(clause[i]) + 1) << " ";
+    }
 
     fprintf(proofFile, "%s0\n", s.str().c_str());
 }

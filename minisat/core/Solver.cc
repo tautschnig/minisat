@@ -26,6 +26,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <math.h>
 
+#include <ctype.h>
+
 #include "minisat/mtl/Alg.h"
 #include "minisat/mtl/Sort.h"
 #include "minisat/utils/System.h"
@@ -56,12 +58,42 @@ static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt
 //=================================================================================================
 // Constructor/Destructor:
 
+bool Minisat::updateOptions()
+{
+  if(getenv("MINISAT_RUNTIME_ARGS") == NULL)
+    return false;
+
+  char *args = strdup(getenv("MINISAT_RUNTIME_ARGS")); // make sure it's freed
+  if(!args) return false;
+  char *original_args = args;
+
+  const size_t len = strlen(args);
+
+  char* argv[len+2];
+  int count = 1;
+
+  argv[0] = "minisat";
+  while (isspace(*args)) ++args;
+  while(*args)
+  {
+    argv[count++] = args; // store current argument
+    while (*args && !isspace(*args)) ++args; // skip current token
+    if(!*args) break;
+    *args = (char)0; // separate current token
+    ++args;
+  }
+
+  parseOptions(count, argv, false);
+  free(original_args);
+  return false;
+}
 
 Solver::Solver() :
 
     // Parameters (user settable):
     //
-    verbosity        (0)
+    reparsed_options (updateOptions())
+  , verbosity        (0)
   , var_decay        (opt_var_decay)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
@@ -147,6 +179,20 @@ Var Solver::newVar(lbool upol, bool dvar)
     return v;
 }
 
+void Solver::reserveVars(Var v)
+{
+    watches  .init(mkLit(v, false));
+    watches  .init(mkLit(v, true));
+
+    assigns  .reserve(v+1);
+    vardata  .reserve(v+1);
+    activity .reserve(v+1);
+    seen     .reserve(v+1);
+    polarity .reserve(v+1);
+    user_pol .reserve(v+1);
+    decision .reserve(v);
+    trail    .capacity(v+1);
+}
 
 // Note: at the moment, only unassigned variable will be released (this is to avoid duplicate
 // releases of the same variable).
@@ -234,10 +280,11 @@ void Solver::detachClause(CRef cr, bool strict){
 }
 
 
-void Solver::removeClause(CRef cr) {
+void Solver::removeClause(CRef cr, bool remove_from_proof) {
     Clause& c = ca[cr];
 
-    extendProof(c, true);
+    if(remove_from_proof)
+        extendProof(c, true);
 
     detachClause(cr);
     // Don't leave pointers to free'd memory!
@@ -1103,7 +1150,6 @@ bool Solver::openProofFile(const char *path)
     proofFile = fopen(path, "wb");
     if(proofFile == 0) return false;
 
-    fprintf(proofFile, "o proof DRUP\n");
     return true;
 }
 
